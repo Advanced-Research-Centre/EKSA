@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 
 class Cell:
     def __init__(self, id, state, transition_function, energy):
@@ -9,6 +10,7 @@ class Cell:
         self.transition_function = transition_function  # Internal function
         self.energy = energy
         self.neighbors = []
+        self.prev_state = state  # Track previous state for entropy calculation
 
     def query_neighbor(self, neighbor):
         """Extract energy from a neighbor based on state difference."""
@@ -20,12 +22,17 @@ class Cell:
 
     def update_state(self):
         """Update the cell's state using its transition function."""
+        self.prev_state = self.state  # Store previous state for entropy tracking
         self.state = self.transition_function(self.state)
 
     def mutate_transition_function(self):
         """Modify transition function slightly to explore adaptability."""
         if random.random() < 0.1:  # Small chance to mutate
             self.transition_function = lambda x: (x + random.uniform(-1, 1)) % 1
+
+    def entropy_decay(self):
+        """Measure entropy decay rate as state stability over time."""
+        return np.abs(self.state - self.prev_state)  # Change in state as proxy for entropy
 
 class CellularAutomaton:
     def __init__(self, num_cells):
@@ -54,10 +61,16 @@ class CellularAutomaton:
                 cell.query_neighbor(neighbor)
             cell.update_state()
             cell.mutate_transition_function()
+    
+    def measure_entropy_decay(self):
+        """Compute the average entropy decay across all non-agent cells."""
+        entropy_rates = [data['cell'].entropy_decay() for _, data in self.graph.nodes(data=True)]
+        return np.mean(entropy_rates)
 
 class Agent:
     def __init__(self, cell):
         self.cell = cell  # The agent is represented by a specific cell
+        self.entropy_decay_history = []
 
     def intelligent_query(self):
         """Choose the best neighbor to extract energy from."""
@@ -70,12 +83,31 @@ class Agent:
     def adapt(self):
         """Modify transition function to maintain low entropy."""
         self.cell.transition_function = lambda x: (x + 0.05) % 1  # Favor stability
+    
+    def track_entropy_decay(self):
+        self.entropy_decay_history.append(self.cell.entropy_decay())
 
 # Initialize and run the system
-ca = CellularAutomaton(num_cells=10)
+num_steps = 50
+ca = CellularAutomaton(num_cells=20)
 agent = Agent(random.choice(list(ca.graph.nodes(data=True)))[1]['cell'])
 
-for _ in range(10):
+environment_entropy_history = []
+agent_entropy_history = []
+
+for _ in range(num_steps):
     agent.intelligent_query()
     agent.adapt()
     ca.step()
+    agent.track_entropy_decay()
+    environment_entropy_history.append(ca.measure_entropy_decay())
+    agent_entropy_history.append(agent.cell.entropy_decay())
+
+# Plot entropy decay rates
+plt.plot(range(num_steps), environment_entropy_history, label="Environment Entropy Decay")
+plt.plot(range(num_steps), agent_entropy_history, label="Agent Entropy Decay", linestyle='dashed')
+plt.xlabel("Time Steps")
+plt.ylabel("Entropy Decay Rate")
+plt.legend()
+plt.title("Entropy Decay Rate: Agent vs Environment")
+plt.show()
