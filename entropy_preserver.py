@@ -1,3 +1,6 @@
+# ChatGPT-4o conversation
+# https://chatgpt.com/share/67ab4351-ec90-8008-b90a-ab7cac2dc5f2
+
 import networkx as nx
 import numpy as np
 import random
